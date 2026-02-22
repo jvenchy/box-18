@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(brew install:*)",
+      "Bash(python3.9:*)",
+      "Bash(curl:*)",
+      "Bash(sh)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
+      "Bash(uv --version:*)",
+      "Bash(uv venv:*)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(uv pip install:*)",
+      "Bash(uv run:*)",
+      "Bash(uv add:*)",
+      "Bash($HOME/.local/bin/uv run:*)",
+      "Bash(/Users/jvenchy/.local/bin/uv run tracklab:*)",
+      "Bash(python3:*)",
+      "Bash(/Users/jvenchy/.local/bin/uv add:*)",
+      "Bash(/Users/jvenchy/.local/bin/uv pip install:*)",
+      "Bash(export PYTORCH_ENABLE_MPS_FALLBACK=1)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
