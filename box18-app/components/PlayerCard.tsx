@@ -15,52 +15,53 @@ interface Player {
 export default function PlayerCard({ player }: { player: Player }) {
   const displayPosition = player.position === 'Goalkeeper' ? 'GK' : player.position;
 
+  // Get player initials (first letter of first name + first letter of last name)
+  const getInitials = (name: string) => {
+    const nameParts = name.trim().split(' ');
+    if (nameParts.length >= 2) {
+      return `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
   return (
     <Link href={`/player/${player.id}`} className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-2xl hover:border-[#5B8DB8] transition-all duration-300 cursor-pointer block">
       {/* Player Image */}
-      <div className="aspect-[4/5] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center relative overflow-hidden">
-        {player.imageUrl ? (
-          <>
-            <Image
-              src={player.imageUrl}
-              alt={player.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            />
-            {/* Heavy noise overlay */}
-            <div
-              className="absolute inset-0 opacity-60 mix-blend-overlay pointer-events-none"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' /%3E%3C/svg%3E")`,
-              }}
-            />
-            {/* Blue gradient overlay matching background3.jpg aesthetic */}
-            {/* <div
-              className="absolute inset-0"
-              style={{
-                background: 'linear-gradient(to bottom, rgba(30, 58, 138, 0.4), rgba(15, 23, 42, 0.6))',
-              }}
-            /> */}
-            {/* Blue color filter */}
-            {/* <div className="absolute inset-0 bg-blue-900/30 mix-blend-multiply" /> */}
-          </>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-6xl font-bold text-white/20">{displayPosition || 'N/A'}</div>
-          </div>
-        )}
+      <div className="aspect-video bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center relative overflow-hidden">
+        {/* Grid mesh background */}
+        <Image
+          src="/position-card-backgrounds/grid-background.png"
+          alt="Grid background"
+          fill
+          className="object-cover opacity-40"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+        />
+
+        {/* Gradient overlay */}
         <div
           className="absolute inset-0"
           style={{
             background: 'linear-gradient(to top, rgba(49, 69, 121, 0.8), rgba(16, 48, 138, 0.4), transparent)',
           }}
         />
-        <div className="absolute bottom-3 left-3 right-3">
-          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-lg px-3 py-2">
-            <span className="text-xs font-semibold text-white">{player.stat}</span>
+
+        {/* Square player profile picture in center */}
+        {player.imageUrl ? (
+          <div className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-white/30 shadow-xl z-10">
+            <Image
+              src={player.imageUrl}
+              alt={player.name}
+              fill
+              className="object-cover opacity-80"
+              sizes="96px"
+            />
           </div>
-        </div>
+        ) : (
+          <div className="w-24 h-24 rounded-lg bg-white/10 backdrop-blur-md border-2 border-white/30 flex items-center justify-center z-10">
+            <div className="text-3xl font-bold text-white">{getInitials(player.name)}</div>
+          </div>
+        )}
+
       </div>
 
       {/* Player Info */}

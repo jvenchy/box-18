@@ -114,6 +114,7 @@ export default function Home() {
         .select(`
           player_id,
           minutes_played,
+          team_id,
           teams (
             id,
             name
@@ -125,15 +126,15 @@ export default function Home() {
       const assistsMap = new Map<string, number>();
       const rostersMap = new Map<string, any[]>();
 
-      allGoals?.forEach(g => {
+      allGoals?.forEach((g: any) => {
         goalsMap.set(g.player_id, (goalsMap.get(g.player_id) || 0) + 1);
       });
 
-      allAssists?.forEach(a => {
+      allAssists?.forEach((a: any) => {
         assistsMap.set(a.player_id, (assistsMap.get(a.player_id) || 0) + 1);
       });
 
-      allRosters?.forEach(r => {
+      allRosters?.forEach((r: any) => {
         if (!rostersMap.has(r.player_id)) {
           rostersMap.set(r.player_id, []);
         }
@@ -147,8 +148,17 @@ export default function Home() {
         const goals = goalsMap.get(player.id) || 0;
         const assists = assistsMap.get(player.id) || 0;
         const matches = rosters.length;
-        const minutes = rosters.reduce((sum, r) => sum + (r.minutes_played || 0), 0);
+        const minutes = rosters.reduce((sum, r: any) => sum + (r.minutes_played || 0), 0);
         const team = rosters[0]?.teams?.name || 'Unknown Team';
+
+        // Debug logging for strikers
+        if (['NIGEL BUCKLEY', 'GEORGE AKPABIO', 'ERION METAJ'].includes(player.full_name)) {
+          console.log(`${player.full_name}:`, {
+            hasRosters: rosters.length > 0,
+            firstRoster: rosters[0],
+            team
+          });
+        }
 
         // Use position mapping based on goals scored
         const estimatedPosition = getPlayerPosition(player.id, player.position);
@@ -165,8 +175,19 @@ export default function Home() {
           stat = `${matches} Match${matches > 1 ? 'es' : ''}`;
         }
 
-        // Check if this player has a hardcoded image
-        const imageUrl = "/position-card-backgrounds/background.jpg"
+        // Map player photos
+        const photoMap: { [key: string]: string } = {
+          'NIGEL BUCKLEY': '/player-pics/buckley.png',
+          'GEORGE AKPABIO': '/player-pics/akpabio.png',
+          'ERION METAJ': '/player-pics/metaj.png',
+          'RONALDO MARSHALL': '/player-pics/ronaldomarshall.png',
+          'JACOB BEGLEY': '/player-pics/begley.png',
+          'DAMOLA AKANNI': '/player-pics/damola.png',
+          'SEBASTIAN COCHRANE': '/player-pics/sebastiancochrane.png',
+          'MICAH JOSEPH': '/player-pics/micahjoseph.png'
+        };
+
+        const imageUrl = photoMap[player.full_name] || undefined;
 
         return {
           ...player,

@@ -44,7 +44,8 @@ export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
   const { data: rosterData } = await supabase
     .from('match_rosters')
     .select(`
-      *,
+      player_id,
+      minutes_played,
       teams (
         id,
         name
@@ -57,10 +58,10 @@ export async function getPlayerStats(playerId: string): Promise<PlayerStats> {
   const yellowCards = yellowCardData?.length || 0;
   const redCards = redCardData?.length || 0;
   const matches = rosterData?.length || 0;
-  const minutes = rosterData?.reduce((sum, r) => sum + (r.minutes_played || 0), 0) || 0;
+  const minutes = rosterData?.reduce((sum, r: any) => sum + (r.minutes_played || 0), 0) || 0;
 
   // Get most recent team
-  const mostRecentRoster = rosterData?.[0];
+  const mostRecentRoster = rosterData?.[0] as any;
   const team = mostRecentRoster?.teams?.name || null;
   const teamId = mostRecentRoster?.teams?.id || null;
 
@@ -117,19 +118,19 @@ export async function getPlayersWithStats() {
   const yellowCardsMap = new Map<string, number>();
   const rostersMap = new Map<string, any[]>();
 
-  allGoals?.forEach(g => {
+  allGoals?.forEach((g: any) => {
     goalsMap.set(g.player_id, (goalsMap.get(g.player_id) || 0) + 1);
   });
 
-  allAssists?.forEach(a => {
+  allAssists?.forEach((a: any) => {
     assistsMap.set(a.player_id, (assistsMap.get(a.player_id) || 0) + 1);
   });
 
-  allYellowCards?.forEach(y => {
+  allYellowCards?.forEach((y: any) => {
     yellowCardsMap.set(y.player_id, (yellowCardsMap.get(y.player_id) || 0) + 1);
   });
 
-  allRosters?.forEach(r => {
+  allRosters?.forEach((r: any) => {
     if (!rostersMap.has(r.player_id)) {
       rostersMap.set(r.player_id, []);
     }
@@ -137,13 +138,13 @@ export async function getPlayersWithStats() {
   });
 
   // Combine data
-  return players?.map(player => {
+  return players?.map((player: any) => {
     const rosters = rostersMap.get(player.id) || [];
     const goals = goalsMap.get(player.id) || 0;
     const assists = assistsMap.get(player.id) || 0;
     const yellowCards = yellowCardsMap.get(player.id) || 0;
     const matches = rosters.length;
-    const minutes = rosters.reduce((sum, r) => sum + (r.minutes_played || 0), 0);
+    const minutes = rosters.reduce((sum, r: any) => sum + (r.minutes_played || 0), 0);
 
     // Get most recent team (first roster)
     const team = rosters[0]?.teams?.name || 'Unknown Team';

@@ -3,6 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DM_Sans } from "next/font/google";
+import Link from "next/link";
+import Image from "next/image";
+import StrikerAnalytics from "./analytics/StrikerAnalytics";
+import MidfielderAnalytics from "./analytics/MidfielderAnalytics";
+import DefenderAnalytics from "./analytics/DefenderAnalytics";
+import GoalkeeperAnalytics from "./analytics/GoalkeeperAnalytics";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -10,9 +16,26 @@ const dmSans = DM_Sans({
   weight: ["400", "500", "600", "700"],
 });
 
+interface Player {
+  id: string;
+  name: string;
+  position: string | null;
+  age: number | null;
+  team: string;
+  goals: number;
+  assists: number;
+  matches: number;
+  nationality: string | null;
+  imageUrl?: string;
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  type?: 'text' | 'players' | 'analytics';
+  players?: Player[];
+  playerName?: string;
+  analyticsType?: 'striker' | 'midfielder' | 'defender' | 'goalkeeper';
 }
 
 interface AIChatProps {
@@ -62,22 +85,28 @@ export default function AIChat({ isOpen, onClose, initialQuery }: AIChatProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get AI response');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('API Error:', errorData);
+        throw new Error(errorData.details || errorData.error || 'Failed to get AI response');
       }
 
       const data = await response.json();
 
       const aiMessage: Message = {
         role: 'assistant',
-        content: data.message
+        content: data.message,
+        type: data.type || 'text',
+        players: data.players,
+        playerName: data.playerName,
+        analyticsType: data.analyticsType
       };
 
       setMessages(prev => [...prev, aiMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again.'
+        content: `Sorry, I encountered an error: ${error.message || 'Please try again.'}`
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -152,15 +181,92 @@ export default function AIChat({ isOpen, onClose, initialQuery }: AIChatProps) {
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                      message.role === 'user'
-                        ? 'bg-[#5B8DB8] text-white'
-                        : 'bg-white/10 backdrop-blur-md text-white border border-white/10'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-                  </div>
+                  {message.role === 'user' ? (
+                    <div className="max-w-[80%] rounded-2xl px-4 py-3 bg-[#5B8DB8] text-white">
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                  ) : (
+                    <div className="max-w-[90%] w-full">
+                      {message.content && (
+                        <div className="bg-white/10 backdrop-blur-md text-white border border-white/10 rounded-2xl px-4 py-3 mb-3">
+                          <p className="whitespace-pre-wrap">{message.content}</p>
+                        </div>
+                      )}
+
+                      {/* Render player cards */}
+                      {message.type === 'players' && message.players && message.players.length > 0 && (
+                        <div className="grid grid-cols-1 gap-3">
+                          {message.players.map((player) => (
+                            <Link
+                              key={player.id}
+                              href={`/player/${player.id}`}
+                              className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 hover:bg-white/20 transition-all"
+                            >
+                              <div className="flex items-center gap-4">
+                                {/* Player Image */}
+                                {player.imageUrl ? (
+                                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border-2 border-white/30 flex-shrink-0">
+                                    <Image
+                                      src={player.imageUrl}
+                                      alt={player.name}
+                                      fill
+                                      className="object-cover"
+                                      sizes="64px"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-16 h-16 rounded-lg bg-white/10 border-2 border-white/30 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-white text-lg font-bold">
+                                      {player.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Player Info */}
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div>
+                                      <h4 className="font-bold text-white text-lg">{player.name}</h4>
+                                      <p className="text-white/60 text-sm">{player.team}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-white/80 text-sm font-semibold">{player.position || 'N/A'}</div>
+                                      <div className="text-white/60 text-xs">{player.age}y</div>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-4">
+                                    <div>
+                                      <div className="text-white/60 text-xs">Goals</div>
+                                      <div className="text-white font-bold">{player.goals || 0}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-white/60 text-xs">Assists</div>
+                                      <div className="text-white font-bold">{player.assists || 0}</div>
+                                    </div>
+                                    <div>
+                                      <div className="text-white/60 text-xs">Matches</div>
+                                      <div className="text-white font-bold">{player.matches || 0}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Render analytics */}
+                      {message.type === 'analytics' && message.analyticsType && (
+                        <div className="bg-white rounded-xl p-6">
+                          <h3 className="text-xl font-bold text-gray-900 mb-4">{message.playerName} Analytics</h3>
+                          {message.analyticsType === 'striker' && <StrikerAnalytics />}
+                          {message.analyticsType === 'midfielder' && <MidfielderAnalytics />}
+                          {message.analyticsType === 'defender' && <DefenderAnalytics />}
+                          {message.analyticsType === 'goalkeeper' && <GoalkeeperAnalytics />}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               ))}
 

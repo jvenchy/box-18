@@ -1,9 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 import { getPlayerPosition } from '@/lib/positionMapping';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
@@ -91,7 +94,22 @@ export default async function handler(
       const team = rosters[0]?.teams?.name || 'Unknown Team';
       const position = getPlayerPosition(p.id, p.position);
 
+      // Map player photos
+      const photoMap: { [key: string]: string } = {
+        'NIGEL BUCKLEY': '/player-pics/buckley.png',
+        'GEORGE AKPABIO': '/player-pics/akpabio.png',
+        'ERION METAJ': '/player-pics/metaj.png',
+        'RONALDO MARSHALL': '/player-pics/ronaldomarshall.png',
+        'JACOB BEGLEY': '/player-pics/begley.png',
+        'DAMOLA AKANNI': '/player-pics/damola.png',
+        'SEBASTIAN COCHRANE': '/player-pics/sebastiancochrane.png',
+        'MICAH JOSEPH': '/player-pics/micahjoseph.png'
+      };
+
+      const imageUrl = photoMap[p.full_name];
+
       return {
+        id: p.id,
         name: p.full_name,
         position,
         age: p.dob ? new Date().getFullYear() - new Date(p.dob).getFullYear() : null,
@@ -99,62 +117,141 @@ export default async function handler(
         goals,
         assists,
         matches,
-        nationality: p.nationality
+        nationality: p.nationality,
+        imageUrl
       };
     }) || [];
 
     // Validate API key
-    if (!process.env.GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY not configured');
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY not configured');
       return res.status(500).json({ error: 'AI service not configured' });
     }
 
-    // Create prompt for Gemini
+    // Create system prompt for OpenAI
     const systemPrompt = `You are an AI recruiting assistant for Box18, a youth soccer recruitment platform.
 Your job is to help coaches find the perfect players based on their requirements.
 
-You have access to the following players database:
-${JSON.stringify(playersContext.slice(0, 50), null, 2)}
+When a coach asks about players, use the search_players function to find and display matching players.
+When a coach asks for analytics on a specific player, use the show_analytics function.
 
-When a coach asks about players, you should:
-1. Analyze their requirements (position, age, stats, playing style, etc.)
-2. Search through the database to find matching players
-3. Return a ranked list of the best fits with explanations
-4. Be conversational and helpful
-5. Ask follow-up questions if needed to narrow down the search
+Be conversational and helpful. Ask follow-up questions if needed to narrow down the search.`;
 
-Always format your responses in a friendly, professional way. If you recommend players, list them with their key stats and why they match the criteria.`;
-
-    // Call Gemini API
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-    // Prepare conversation history with system prompt
-    const conversationHistory = messages.slice(0, -1).map(m => ({
-      role: m.role === 'user' ? 'user' : 'model',
-      parts: [{ text: m.content }]
-    }));
-
-    const chat = model.startChat({
-      history: conversationHistory,
-      generationConfig: {
-        maxOutputTokens: 1000,
-        temperature: 0.7,
+    // Define function tools
+    const tools = [
+      {
+        type: 'function',
+        function: {
+          name: 'search_players',
+          description: 'Search for players by position and return the top rated players. This will display player cards in the chat.',
+          parameters: {
+            type: 'object',
+            properties: {
+              position: {
+                type: 'string',
+                description: 'The position to filter by (e.g., ST, CM, CB, GK). Use null for all positions.',
+                enum: ['ST', 'CF', 'LW', 'RW', 'CM', 'CAM', 'CDM', 'LM', 'RM', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'GK', null]
+              },
+              limit: {
+                type: 'number',
+                description: 'Maximum number of players to return (default: 5)',
+                default: 5
+              }
+            },
+            required: []
+          }
+        }
       },
+      {
+        type: 'function',
+        function: {
+          name: 'show_analytics',
+          description: 'Show analytics for a specific player. This will display analytics charts and stats.',
+          parameters: {
+            type: 'object',
+            properties: {
+              playerName: {
+                type: 'string',
+                description: 'The full name of the player to show analytics for'
+              },
+              analyticsType: {
+                type: 'string',
+                description: 'Type of analytics to show based on player position',
+                enum: ['striker', 'midfielder', 'defender', 'goalkeeper']
+              }
+            },
+            required: ['playerName', 'analyticsType']
+          }
+        }
+      }
+    ];
+
+    // Prepare conversation history for OpenAI
+    const conversationHistory = [
+      { role: 'system' as const, content: systemPrompt },
+      ...messages.map(m => ({
+        role: m.role === 'user' ? 'user' as const : 'assistant' as const,
+        content: m.content
+      }))
+    ];
+
+    // Call OpenAI API with function calling
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 1000,
+      temperature: 0.7,
+      messages: conversationHistory,
+      tools: tools as any,
+      tool_choice: 'auto',
     });
 
-    // Combine system prompt with user message for first message, or just send user message
-    const messageToSend = conversationHistory.length === 0
-      ? `${systemPrompt}\n\nUser: ${userMessage}`
-      : userMessage;
+    const choice = response.choices[0];
+    const message = choice.message;
 
-    const result = await chat.sendMessage(messageToSend);
+    // Handle function calls
+    if (message.tool_calls && message.tool_calls.length > 0) {
+      const toolCall = message.tool_calls[0] as any;
+      const functionName = toolCall.function.name;
+      const functionArgs = JSON.parse(toolCall.function.arguments);
 
-    const response = result.response;
-    const text = response.text();
+      if (functionName === 'search_players') {
+        const { position, limit = 5 } = functionArgs;
+
+        // Filter players by position if specified
+        let filteredPlayers = playersContext;
+        if (position) {
+          filteredPlayers = playersContext.filter(p =>
+            p.position?.toUpperCase() === position.toUpperCase()
+          );
+        }
+
+        // Sort by goals (rating proxy) and limit
+        const topPlayers = filteredPlayers
+          .sort((a, b) => (b.goals || 0) - (a.goals || 0))
+          .slice(0, limit);
+
+        return res.status(200).json({
+          message: message.content || `Here are the top ${position || 'rated'} players:`,
+          type: 'players',
+          players: topPlayers
+        });
+      } else if (functionName === 'show_analytics') {
+        const { playerName, analyticsType } = functionArgs;
+
+        return res.status(200).json({
+          message: `Here are the analytics for ${playerName}:`,
+          type: 'analytics',
+          playerName,
+          analyticsType
+        });
+      }
+    }
+
+    const text = message.content || 'Sorry, I could not generate a response.';
 
     return res.status(200).json({
       message: text,
-      players: playersContext
+      type: 'text'
     });
 
   } catch (error: any) {

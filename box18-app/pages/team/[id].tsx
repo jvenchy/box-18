@@ -65,6 +65,8 @@ export default function TeamPage() {
   }, [id]);
 
   async function fetchTeam() {
+    if (!id || Array.isArray(id)) return;
+
     try {
       const { data: teamData, error: teamError } = await supabase
         .from('teams')
@@ -79,6 +81,7 @@ export default function TeamPage() {
         .single();
 
       if (teamError) throw teamError;
+      if (!teamData) return;
 
       // Get all players from this team via match_rosters
       const { data: rostersData } = await supabase
@@ -130,7 +133,7 @@ export default function TeamPage() {
             full_name: player.full_name,
             position: player.position,
             age,
-            team: teamData.name,
+            team: (teamData as any).name,
             stat,
             rating,
             metadata: player.metadata,

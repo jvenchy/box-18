@@ -89,7 +89,7 @@ export default function PlayerProfile() {
 
   useEffect(() => {
     async function fetchStats() {
-      if (!id) return;
+      if (!id || Array.isArray(id)) return;
 
       const { data: goalData } = await supabase
         .from('match_events')
@@ -118,6 +118,8 @@ export default function PlayerProfile() {
   }, [id]);
 
   async function fetchPlayer() {
+    if (!id || Array.isArray(id)) return;
+
     try {
       const { data: playerData, error: playerError } = await supabase
         .from('players')
@@ -352,32 +354,10 @@ export default function PlayerProfile() {
                 </div>
               </section>
 
-              {/* AI Player Comparisons */}
+              {/* Advanced Analytics */}
               <section>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">AI Player Comparisons</h2>
-                <p className="text-gray-600 mb-6">Similar players based on playing style and statistics</p>
-                <div className="space-y-3">
-                  {similarPlayers.map((comp, idx) => (
-                    <div key={idx} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <div className="font-bold text-gray-900 text-lg">{comp.name}</div>
-                          <div className="text-sm text-gray-500">{comp.team}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-[#5B8DB8]">{comp.similarity}%</div>
-                          <div className="text-xs text-gray-500">Match</div>
-                        </div>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-[#5B8DB8] h-2 rounded-full transition-all"
-                          style={{ width: `${comp.similarity}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-6">Advanced Analytics</h2>
+                {getAnalyticsComponent()}
               </section>
 
               {/* Match History */}
@@ -420,10 +400,32 @@ export default function PlayerProfile() {
                 )}
               </section>
 
-              {/* Advanced Analytics */}
+              {/* AI Player Comparisons */}
               <section>
-                <h2 className="text-3xl font-bold text-gray-900 mb-6">Advanced Analytics</h2>
-                {getAnalyticsComponent()}
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">AI Player Comparisons</h2>
+                <p className="text-gray-600 mb-6">Similar players based on playing style and statistics</p>
+                <div className="space-y-3">
+                  {similarPlayers.map((comp, idx) => (
+                    <div key={idx} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="font-bold text-gray-900 text-lg">{comp.name}</div>
+                          <div className="text-sm text-gray-500">{comp.team}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-[#5B8DB8]">{comp.similarity}%</div>
+                          <div className="text-xs text-gray-500">Match</div>
+                        </div>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-[#5B8DB8] h-2 rounded-full transition-all"
+                          style={{ width: `${comp.similarity}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </section>
             </div>
           </div>

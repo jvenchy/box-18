@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line } from 'recharts';
 
 const saveData = [
@@ -36,36 +37,14 @@ export default function GoalkeeperAnalytics() {
       <div>
         <h3 className="text-2xl font-bold text-gray-900 mb-4">Goalkeeper Activity Map</h3>
         <div className="bg-gradient-to-br from-green-50 to-white border border-gray-200 rounded-xl p-6">
-          <div className="relative w-full aspect-[2/3] bg-gradient-to-b from-green-600 to-green-700 rounded-lg overflow-hidden">
-            {/* Soccer field */}
-            <div className="absolute inset-0 opacity-20">
-              <div className="absolute top-0 left-0 right-0 h-px bg-white"></div>
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-white"></div>
-              <div className="absolute top-0 bottom-0 left-0 w-px bg-white"></div>
-              <div className="absolute top-0 bottom-0 right-0 w-px bg-white"></div>
-              <div className="absolute top-1/2 left-0 right-0 h-px bg-white"></div>
-            </div>
-
-            {/* Heat zones - concentrated in goal area */}
-            <div className="absolute bottom-[8%] left-1/2 -translate-x-1/2 w-28 h-28 bg-red-500 rounded-full opacity-70 blur-3xl"></div>
-            <div className="absolute bottom-[15%] left-[35%] w-20 h-20 bg-orange-500 rounded-full opacity-50 blur-2xl"></div>
-            <div className="absolute bottom-[15%] right-[35%] w-20 h-20 bg-orange-500 rounded-full opacity-50 blur-2xl"></div>
-            <div className="absolute bottom-[25%] left-1/2 -translate-x-1/2 w-24 h-24 bg-yellow-500 rounded-full opacity-45 blur-xl"></div>
-
-            <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-white">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span>High Activity</span>
-              </div>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <span>Medium Activity</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <span>Low Activity</span>
-              </div>
-            </div>
+          <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden">
+            <Image
+              src="/images/heatmap.png"
+              alt="Player Heat Map"
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
           </div>
         </div>
       </div>

@@ -287,7 +287,7 @@ export default function SearchPage() {
       if (leaguesError) throw leaguesError;
 
       const leaguesWithData = await Promise.all(
-        (leaguesData || []).map(async (league) => {
+        (leaguesData || []).map(async (league: any) => {
           const { data: matchesData } = await supabase
             .from('matches')
             .select('id, date, home_score, away_score, status')
