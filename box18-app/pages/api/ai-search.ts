@@ -2,15 +2,13 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 import { getPlayerPosition } from '@/lib/positionMapping';
+import { supabaseAnonKey, supabaseUrl } from '@/lib/supabaseConfig';
 
 const genAI = new GoogleGenerativeAI(
   process.env.GEMINI_API_KEY || ''
 );
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 interface Message {
   role: 'user' | 'assistant';
