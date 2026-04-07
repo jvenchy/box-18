@@ -1,11 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 import { getPlayerPosition } from '@/lib/positionMapping';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
-});
+const genAI = new GoogleGenerativeAI(
+  process.env.GEMINI_API_KEY || ''
+);
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -34,6 +34,38 @@ interface SearchPlayersInput {
 interface ShowAnalyticsInput {
   playerName?: string;
   analyticsType?: 'striker' | 'midfielder' | 'defender' | 'goalkeeper';
+}
+
+interface GeminiResponse {
+  message?: string;
+  type?: 'text' | 'players' | 'analytics';
+  position?: string | null;
+  limit?: number;
+  playerName?: string;
+  analyticsType?: 'striker' | 'midfielder' | 'defender' | 'goalkeeper';
+}
+
+async function generateWithGemini(promptParts: string[]) {
+  const configuredModel = process.env.GEMINI_MODEL;
+  const candidateModels = [
+    configuredModel,
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+  ].filter((model): model is string => Boolean(model));
+
+  let lastError: unknown;
+
+  for (const modelName of candidateModels) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(promptParts);
+      return result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
 }
 
 export default async function handler(
@@ -142,155 +174,114 @@ export default async function handler(
         };
       }) || [];
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.error('ANTHROPIC_API_KEY not configured');
+    if (!process.env.GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY not configured');
       return res.status(500).json({ error: 'AI service not configured' });
     }
 
     const systemPrompt = `You are an AI recruiting assistant for Box18, a youth soccer recruitment platform.
-Your job is to help coaches find the perfect players based on their requirements.
+Your job is to help coaches find the right players based on their requirements.
 
-When a coach asks about players, use the search_players tool to find and display matching players.
-When a coach asks for analytics on a specific player, use the show_analytics tool.
+Return only valid JSON with this shape:
+{
+  "message": "string",
+  "type": "text" | "players" | "analytics",
+  "position": "ST" | "CF" | "LW" | "RW" | "CM" | "CAM" | "CDM" | "LM" | "RM" | "CB" | "LB" | "RB" | "LWB" | "RWB" | "GK" | null,
+  "limit": number,
+  "playerName": "string",
+  "analyticsType": "striker" | "midfielder" | "defender" | "goalkeeper"
+}
 
-Be conversational and helpful. Ask follow-up questions if needed to narrow down the search.`;
+Rules:
+- Use "players" when the coach is asking to find or compare players.
+- Use "analytics" when the coach asks for analytics about one player.
+- Use "text" for follow-up questions or general conversational replies.
+- Keep "message" conversational and helpful.
+- When type is "players", include a matching position if clear, otherwise null, and a sensible limit.
+- When type is "analytics", include playerName and analyticsType.
+- Do not include markdown fences or extra text outside the JSON.`;
 
-    const response = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-latest',
-      max_tokens: 1000,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: messages.map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
-      tools: [
-        {
-          name: 'search_players',
-          description:
-            'Search for players by position and return the top rated players. This will display player cards in the chat.',
-          input_schema: {
-            type: 'object',
-            properties: {
-              position: {
-                anyOf: [
-                  {
-                    type: 'string',
-                    enum: [
-                      'ST',
-                      'CF',
-                      'LW',
-                      'RW',
-                      'CM',
-                      'CAM',
-                      'CDM',
-                      'LM',
-                      'RM',
-                      'CB',
-                      'LB',
-                      'RB',
-                      'LWB',
-                      'RWB',
-                      'GK',
-                    ],
-                  },
-                  { type: 'null' },
-                ],
-                description:
-                  'The position to filter by (e.g., ST, CM, CB, GK). Use null for all positions.',
-              },
-              limit: {
-                type: 'number',
-                description: 'Maximum number of players to return (default: 5)',
-                default: 5,
-              },
-            },
-            required: [],
-          },
-        },
-        {
-          name: 'show_analytics',
-          description:
-            'Show analytics for a specific player. This will display analytics charts and stats.',
-          input_schema: {
-            type: 'object',
-            properties: {
-              playerName: {
-                type: 'string',
-                description: 'The full name of the player to show analytics for',
-              },
-              analyticsType: {
-                type: 'string',
-                description: 'Type of analytics to show based on player position',
-                enum: ['striker', 'midfielder', 'defender', 'goalkeeper'],
-              },
-            },
-            required: ['playerName', 'analyticsType'],
-          },
-        },
-      ],
-    });
+    const conversationHistory = messages
+      .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+      .join('\n');
 
-    const text = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => block.text)
-      .join('\n')
-      .trim();
+    const result = await generateWithGemini([
+      systemPrompt,
+      `Available players data:\n${JSON.stringify(playersContext)}`,
+      `Conversation:\n${conversationHistory}`,
+    ]);
 
-    const toolUseBlock = response.content.find((block) => block.type === 'tool_use');
+    const rawText = result.response.text().trim();
+    const normalizedText = rawText
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/, '');
 
-    if (toolUseBlock?.type === 'tool_use') {
-      if (toolUseBlock.name === 'search_players') {
-        const input = toolUseBlock.input as SearchPlayersInput;
-        const position =
-          typeof input.position === 'string'
-            ? input.position
-            : null;
-        const limit = typeof input.limit === 'number' ? input.limit : 5;
+    let geminiResponse: GeminiResponse;
 
-        let filteredPlayers = playersContext;
-        if (position) {
-          filteredPlayers = playersContext.filter(
-            (player) => player.position?.toUpperCase() === position.toUpperCase()
-          );
-        }
+    try {
+      geminiResponse = JSON.parse(normalizedText) as GeminiResponse;
+    } catch {
+      return res.status(200).json({
+        message: rawText || 'Sorry, I could not generate a response.',
+        type: 'text',
+      });
+    }
 
-        const topPlayers = filteredPlayers
-          .sort((a, b) => (b.goals || 0) - (a.goals || 0))
-          .slice(0, limit);
+    if (geminiResponse.type === 'players') {
+      const input: SearchPlayersInput = {
+        position:
+          typeof geminiResponse.position === 'string' ? geminiResponse.position : null,
+        limit: typeof geminiResponse.limit === 'number' ? geminiResponse.limit : 5,
+      };
 
-        return res.status(200).json({
-          message: text || `Here are the top ${position || 'rated'} players:`,
-          type: 'players',
-          players: topPlayers,
-        });
+      const position = input.position;
+      const limit = input.limit ?? 5;
+
+      let filteredPlayers = playersContext;
+      if (position) {
+        filteredPlayers = playersContext.filter(
+          (player) => player.position?.toUpperCase() === position.toUpperCase()
+        );
       }
 
-      if (toolUseBlock.name === 'show_analytics') {
-        const input = toolUseBlock.input as ShowAnalyticsInput;
-        const playerName =
-          typeof input.playerName === 'string'
-            ? input.playerName
-            : 'Unknown Player';
-        const analyticsType =
-          input.analyticsType === 'striker' ||
-          input.analyticsType === 'midfielder' ||
-          input.analyticsType === 'defender' ||
-          input.analyticsType === 'goalkeeper'
-            ? input.analyticsType
-            : 'midfielder';
+      const topPlayers = filteredPlayers
+        .sort((a, b) => (b.goals || 0) - (a.goals || 0))
+        .slice(0, limit);
 
-        return res.status(200).json({
-          message: text || `Here are the analytics for ${playerName}:`,
-          type: 'analytics',
-          playerName,
-          analyticsType,
-        });
-      }
+      return res.status(200).json({
+        message: geminiResponse.message || `Here are the top ${position || 'rated'} players:`,
+        type: 'players',
+        players: topPlayers,
+      });
+    }
+
+    if (geminiResponse.type === 'analytics') {
+      const input: ShowAnalyticsInput = {
+        playerName: geminiResponse.playerName,
+        analyticsType: geminiResponse.analyticsType,
+      };
+
+      const playerName =
+        typeof input.playerName === 'string' ? input.playerName : 'Unknown Player';
+      const analyticsType =
+        input.analyticsType === 'striker' ||
+        input.analyticsType === 'midfielder' ||
+        input.analyticsType === 'defender' ||
+        input.analyticsType === 'goalkeeper'
+          ? input.analyticsType
+          : 'midfielder';
+
+      return res.status(200).json({
+        message: geminiResponse.message || `Here are the analytics for ${playerName}:`,
+        type: 'analytics',
+        playerName,
+        analyticsType,
+      });
     }
 
     return res.status(200).json({
-      message: text || 'Sorry, I could not generate a response.',
+      message: geminiResponse.message || rawText || 'Sorry, I could not generate a response.',
       type: 'text',
     });
   } catch (error: unknown) {
