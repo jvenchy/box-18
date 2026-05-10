@@ -224,6 +224,41 @@ export interface Database {
           created_at?: string | null
         }
       }
+      waitlist: {
+        Row: {
+          id: string
+          email: string
+          audience: string
+          city: string | null
+          university: string | null
+          answers: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email: string
+          audience: string
+          city?: string | null
+          university?: string | null
+          answers?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          audience?: string
+          city?: string | null
+          university?: string | null
+          answers?: Json
+          created_at?: string
+        }
+      }
+    }
+    Functions: {
+      public_waitlist_count: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
     }
   }
 }
