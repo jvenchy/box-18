@@ -12,7 +12,7 @@ interface Player {
   imageUrl?: string;
 }
 
-export default function PlayerCard({ player }: { player: Player }) {
+export default function PlayerCard({ player, basePath = "" }: { player: Player; basePath?: string }) {
   const displayPosition = player.position === 'Goalkeeper' ? 'GK' : player.position;
 
   // Get player initials (first letter of first name + first letter of last name)
@@ -25,7 +25,7 @@ export default function PlayerCard({ player }: { player: Player }) {
   };
 
   return (
-    <Link href={`/player/${player.id}`} className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-2xl hover:border-[#5B8DB8] transition-all duration-300 cursor-pointer block">
+    <Link href={`${basePath}/player/${player.id}`} className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-2xl hover:border-[#5B8DB8] transition-all duration-300 cursor-pointer block">
       {/* Player Image */}
       <div className="aspect-video bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center relative overflow-hidden">
         {/* Grid mesh background */}

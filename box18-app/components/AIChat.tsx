@@ -42,9 +42,10 @@ interface AIChatProps {
   isOpen: boolean;
   onClose: () => void;
   initialQuery?: string;
+  basePath?: string;
 }
 
-export default function AIChat({ isOpen, onClose, initialQuery }: AIChatProps) {
+export default function AIChat({ isOpen, onClose, initialQuery, basePath = "" }: AIChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -199,7 +200,7 @@ export default function AIChat({ isOpen, onClose, initialQuery }: AIChatProps) {
                           {message.players.map((player) => (
                             <Link
                               key={player.id}
-                              href={`/player/${player.id}`}
+                              href={`${basePath}/player/${player.id}`}
                               className="bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 hover:bg-white/20 transition-all"
                             >
                               <div className="flex items-center gap-4">
